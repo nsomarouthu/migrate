@@ -263,9 +263,21 @@ Database drivers: `+strings.Join(database.List(), ", ")+"\n", createUsage, gotoU
 			log.fatal("error: can't read version argument V")
 		}
 
-		if err := gotoCmd(migrater, uint(v)); err != nil {
+		curVersion, dirty, _ := migrater.Version()
+
+		if dirty {
+			migrater.HandleDirtyState(path)
+		}
+
+		err = gotoCmd(migrater, uint(v))
+		if err != nil {
+			// Handle failure: store last successful migration version and exit
+			migrater.HandleMigrationFailure(int(curVersion), uint(v), path)
 			log.fatalErr(err)
 		}
+		
+		// Success: Clean up and confirm
+		migrater.CleanupFiles(path, uint(v))
 
 		if log.verbose {
 			log.Println("Finished after", time.Since(startTime))
