@@ -9,36 +9,38 @@ import (
 	"strings"
 )
 
+// Define a constant for the migration file name
+const lastSuccessfulMigrationFile = "lastSuccessfulMigration"
+
 func (m *Migrate) HandleDirtyState(path string) {
 	// Perform actions when dirty is true
-	lastSuccessfulMigrationPath := filepath.Join(path, "lastSuccessfulmigration")
+	lastSuccessfulMigrationPath := filepath.Join(path, lastSuccessfulMigrationFile)
 	lastVersionBytes, err := os.ReadFile(lastSuccessfulMigrationPath)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to read last successful migration file: %s", err))
+		log.Fatalf("failed to read last successful migration file: %s", err)
 	}
 	lastVersionStr := strings.TrimSpace(string(lastVersionBytes))
 	lastVersion, err := strconv.ParseUint(lastVersionStr, 10, 64)
 	if err != nil {
-		log.Fatal(fmt.Errorf("failed to parse last successful migration version: %s", err))
+		log.Fatalf("failed to parse last successful migration version: %s", err)
 	}
 
 	if err := m.Force(int(lastVersion)); err != nil {
-		log.Fatal(fmt.Errorf("failed to apply last successful migration: %s", err))
+		log.Fatalf("failed to apply last successful migration: %s", err)
 	}
 
-	fmt.Println("Last successful migration applied")
+	log.Println("Last successful migration applied")
 
 	if err := os.Remove(lastSuccessfulMigrationPath); err != nil {
-		log.Fatal(fmt.Errorf("failed to delete last successful migration file: %s", err))
+		log.Fatalf("failed to delete last successful migration file: %s", err)
 	}
 
-	fmt.Println("Last successful migration file deleted")
-
+	log.Println("Last successful migration file deleted")
 }
 
-func (m *Migrate) HandleMigrationFailure(curVersion int, v uint, path string) ([]int, error) {
+func (m *Migrate) HandleMigrationFailure(curVersion int, v uint, path string) error {
 	if err := m.lock(); err != nil {
-		return nil, err
+		return m.unlockErr(err)
 	}
 
 	ret := make(chan interface{}, m.PrefetchMigrations)
@@ -51,9 +53,9 @@ func (m *Migrate) HandleMigrationFailure(curVersion int, v uint, path string) ([
 
 	failedVersion, _, err := m.databaseDrv.Version()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	fmt.Println("failedVersion:", failedVersion, "migrations:", migrations, curVersion, v)
+	log.Println("failedVersion:", failedVersion, "migrations:", migrations, curVersion, v)
 
 	// Determine the last successful migration
 	lastSuccessfulMigration := strconv.Itoa(curVersion)
@@ -64,19 +66,19 @@ func (m *Migrate) HandleMigrationFailure(curVersion int, v uint, path string) ([
 		}
 	}
 
-	fmt.Println("migration failed, last successful migration version:", lastSuccessfulMigration)
-	lastSuccessfulMigrationPath := filepath.Join(path, "lastSuccessfulMigration")
+	log.Println("migration failed, last successful migration version:", lastSuccessfulMigration)
+	lastSuccessfulMigrationPath := filepath.Join(path, lastSuccessfulMigrationFile)
 	if err := os.WriteFile(lastSuccessfulMigrationPath, []byte(lastSuccessfulMigration), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write last successful migration file: %w", err)
+		return err
 	}
 
-	return nil, fmt.Errorf("migration failed, last successful migration version stored in file: %s", lastSuccessfulMigrationPath)
+	return nil
 }
 
 func (m *Migrate) CleanupFiles(path string, v uint) error {
 	files, err := os.ReadDir(path)
 	if err != nil {
-		return fmt.Errorf("failed to read directory: %w", err)
+		return err
 	}
 
 	targetVersion := uint64(v)
