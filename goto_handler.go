@@ -11,28 +11,28 @@ import (
 
 func (m *Migrate) HandleDirtyState(path string) {
 	// Perform actions when dirty is true
-		lastSuccessfulMigrationPath := filepath.Join(path, "lastSuccessfulmigration")
-		lastVersionBytes, err := os.ReadFile(lastSuccessfulMigrationPath)
-		if err != nil {
-			log.Fatal(fmt.Errorf("failed to read last successful migration file: %s", err))
-		}
-		lastVersionStr := strings.TrimSpace(string(lastVersionBytes))
-		lastVersion, err := strconv.ParseUint(lastVersionStr, 10, 64)
-		if err != nil {
-			log.Fatal(fmt.Errorf("failed to parse last successful migration version: %s", err))
-		}
+	lastSuccessfulMigrationPath := filepath.Join(path, "lastSuccessfulmigration")
+	lastVersionBytes, err := os.ReadFile(lastSuccessfulMigrationPath)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to read last successful migration file: %s", err))
+	}
+	lastVersionStr := strings.TrimSpace(string(lastVersionBytes))
+	lastVersion, err := strconv.ParseUint(lastVersionStr, 10, 64)
+	if err != nil {
+		log.Fatal(fmt.Errorf("failed to parse last successful migration version: %s", err))
+	}
 
-		if err := m.Force(int(lastVersion)) ; err != nil {
-			log.Fatal(fmt.Errorf("failed to apply last successful migration: %s", err))
-		}
+	if err := m.Force(int(lastVersion)); err != nil {
+		log.Fatal(fmt.Errorf("failed to apply last successful migration: %s", err))
+	}
 
-		fmt.Println("Last successful migration applied")
+	fmt.Println("Last successful migration applied")
 
-		if err := os.Remove(lastSuccessfulMigrationPath); err != nil {
-			log.Fatal(fmt.Errorf("failed to delete last successful migration file: %s", err))
-		}
+	if err := os.Remove(lastSuccessfulMigrationPath); err != nil {
+		log.Fatal(fmt.Errorf("failed to delete last successful migration file: %s", err))
+	}
 
-		fmt.Println("Last successful migration file deleted")
+	fmt.Println("Last successful migration file deleted")
 
 }
 
@@ -43,7 +43,7 @@ func (m *Migrate) HandleMigrationFailure(curVersion int, v uint, path string) ([
 
 	ret := make(chan interface{}, m.PrefetchMigrations)
 	go m.read(curVersion, int(v), ret)
-	
+
 	var migrations []int
 	for r := range ret {
 		migrations = append(migrations, int(r.(*Migration).Version))
