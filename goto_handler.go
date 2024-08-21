@@ -60,7 +60,7 @@ func (m *Migrate) HandleMigrationFailure(curVersion int, v uint, path string) er
 	// Determine the last successful migration
 	lastSuccessfulMigration := strconv.Itoa(curVersion)
 	for i := len(migrations) - 1; i > 0; i-- { // Iterate backwards for efficiency
-		if uint(migrations[i]) == uint(failedVersion) && i > 0 {
+		if uint(migrations[i]) == uint(failedVersion) {
 			lastSuccessfulMigration = strconv.Itoa(migrations[i-1])
 			break
 		}
