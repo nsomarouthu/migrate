@@ -78,6 +78,7 @@ func Main(version string) {
 	lockTimeout := viper.GetInt("lock-timeout")
 	path := viper.GetString("path")
 	sourcePtr := viper.GetString("source")
+	intsourcePtr := viper.GetString("intsource")
 
 	databasePtr := viper.GetString("database.dsn")
 	if databasePtr == "" {
@@ -263,8 +264,36 @@ Database drivers: `+strings.Join(database.List(), ", ")+"\n", createUsage, gotoU
 			log.fatal("error: can't read version argument V")
 		}
 
-		if err := gotoCmd(migrater, uint(v)); err != nil {
+		//drv, err := source.Open(sourcePtr)
+		//
+		//if err != nil {
+		//	log.fatalErr(err)
+		//}
+		//err = migrater.CopyFiles(intsourcePtr, path)
+		//if err != nil {
+		//	return
+		//}
+
+		curVersion, dirty, _ := migrater.Version()
+
+		if dirty {
+			migrater.HandleDirtyState(path)
+		}
+
+		err = gotoCmd(migrater, uint(v))
+		if err != nil {
+			// Handle failure: store last successful migration version and exit
+			err := migrater.HandleMigrationFailure(int(curVersion), uint(v), path)
+			if err != nil {
+				return
+			}
 			log.fatalErr(err)
+		}
+
+		// Success: Clean up and confirm
+		err = migrater.CleanupFiles(path, uint(v))
+		if err != nil {
+			return
 		}
 
 		if log.verbose {
